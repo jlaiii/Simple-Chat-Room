@@ -3,6 +3,7 @@ import string
 import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
+import time
 
 # Global chat history
 chat_history = []
@@ -15,7 +16,7 @@ common_names = ["Anonymous", "Slayer", "Stranger", "Visitor", "Mystery"]
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/':
-            self.send_response(1000)
+            self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
 
@@ -32,9 +33,14 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             <body>
                 <h1>Simple Chat Room</h1>
                 <div id="chatDiv"></div>
-                <input type="text" id="messageInput" placeholder="Type your message..." />
-                <button id="sendButton" onclick="sendMessage()">Send</button>
+                <div>
+                    <strong><span id="usernameDisplay">{user_name}</span>:</strong>
+                    <input type="text" id="messageInput" placeholder="Type your message..." onkeydown="checkEnter(event)" />
+                    <button id="sendButton" onclick="sendMessage()">Send</button>
+                </div>
                 <script>
+                    var user_name = '{user_name}';
+                    
                     function sendMessage() {{
                         var messageInput = document.getElementById('messageInput');
                         var message = messageInput.value;
@@ -43,27 +49,35 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
                         var xhr = new XMLHttpRequest();
                         xhr.open('POST', '/message', true);
                         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-                        xhr.send('user={user_name}&message=' + encodeURIComponent(message));
+                        xhr.send('user=' + user_name + '&message=' + encodeURIComponent(message));
+                    }}
+
+                    function checkEnter(event) {{
+                        if (event.key === 'Enter') {{
+                            sendMessage();
+                        }}
                     }}
                     
-                    setInterval(function() {{
+                    function updateChat() {{
                         var chatDiv = document.getElementById('chatDiv');
                         var xhr = new XMLHttpRequest();
                         xhr.open('GET', '/chat', true);
                         xhr.onreadystatechange = function() {{
-                            if (xhr.readyState === 4 && xhr.status === 1000) {{
+                            if (xhr.readyState === 4 && xhr.status === 200) {{
                                 chatDiv.innerHTML = xhr.responseText;
                             }}
                         }};
                         xhr.send();
-                    }}, 1000);
+                    }}
+                    
+                    setInterval(updateChat, 2000); // Update seconds
                 </script>
             </body>
             </html>
             """
             self.wfile.write(html_response.encode('utf-8'))
         elif self.path == '/chat':
-            self.send_response(1000)
+            self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
 
@@ -83,7 +97,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             with chat_lock:
                 chat_history.append(f'<strong>{user_name}:</strong> {message}')
             
-            self.send_response(1000)
+            self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
 
